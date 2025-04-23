@@ -4,6 +4,13 @@ import type { ReactNode } from "react";
 
 const dataSource = [
 	{
+		country: "Spain",
+		iconify: "twemoji:flag-spain",
+		android: "22.81k",
+		windows: "9.05k",
+		ios: "30.35k",
+	},
+	{
 		country: "Germany",
 		iconify: "twemoji:flag-germany",
 		android: "9.91k",
