@@ -8,7 +8,7 @@ import en_US from "./lang/en_US";
 import es_ES from "./lang/es_ES";
 import zh_CN from "./lang/zh_CN";
 
-import { es } from "@faker-js/faker";
+// import { es } from "@faker-js/faker";
 import { LocalEnum, StorageEnum } from "#/enum";
 
 const defaultLng = getStringItem(StorageEnum.I18N) || (LocalEnum.en_US as string) || (LocalEnum.es_ES as string);

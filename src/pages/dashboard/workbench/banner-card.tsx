@@ -1,5 +1,5 @@
 import Character3 from "@/assets/images/characters/character_3.png";
-import { Icon } from "@/components/icon";
+// import { Icon } from "@/components/icon";
 import { useUserInfo } from "@/store/userStore";
 import { themeVars } from "@/theme/theme.css";
 
