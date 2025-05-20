@@ -1,6 +1,6 @@
-import apiClient from "../apiClient";
-
 import type { UserInfo, UserToken } from "#/entity";
+// src/api/services/userService.ts
+import apiClient from "../apiClient";
 
 export interface SignInReq {
 	username: string;
@@ -20,13 +20,16 @@ export enum UserApi {
 	User = "/user",
 }
 
-const signin = (data: SignInReq) =>
-	apiClient.post<SignInRes>({ url: UserApi.SignIn, data });
-const signup = (data: SignUpReq) =>
-	apiClient.post<SignInRes>({ url: UserApi.SignUp, data });
+const signin = (data: SignInReq) => {
+	console.log("Signin request with data:", data);
+	return apiClient.post<SignInRes>({ url: UserApi.SignIn, data });
+};
+
+const signup = (data: SignUpReq) => apiClient.post<SignInRes>({ url: UserApi.SignUp, data });
+
 const logout = () => apiClient.get({ url: UserApi.Logout });
-const findById = (id: string) =>
-	apiClient.get<UserInfo[]>({ url: `${UserApi.User}/${id}` });
+
+const findById = (id: string) => apiClient.get<UserInfo[]>({ url: `${UserApi.User}/${id}` });
 
 export default {
 	signin,

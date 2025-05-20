@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
-import worker from "./_mock";
+// import worker from "./_mock";
 import "./locales/i18n";
 import "./global.css";
 import "./theme/theme.css";
@@ -38,4 +38,4 @@ root.render(
 );
 
 // 🥵 start service worker mock in development mode
-worker.start({ onUnhandledRequest: "bypass" });
+// worker.start({ onUnhandledRequest: "bypass" });

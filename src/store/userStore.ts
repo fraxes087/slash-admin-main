@@ -1,9 +1,11 @@
+// src/store/userStore.ts
 import { useMutation } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import userService, { type SignInReq } from "@/api/services/userService";
+import userService, { type SignInReq, type SignInRes } from "@/api/services/userService";
 
 import { toast } from "sonner";
 import type { UserInfo, UserToken } from "#/entity";
@@ -29,12 +31,21 @@ const useUserStore = create<UserStore>()(
 			userToken: {},
 			actions: {
 				setUserInfo: (userInfo) => {
-					set({ userInfo });
+					console.log("Setting user info:", userInfo);
+					// Asegurarse de que el objeto userInfo tenga la propiedad permissions
+					set({
+						userInfo: {
+							...userInfo,
+							permissions: userInfo?.permissions || [], // Proporcionar un valor por defecto
+						},
+					});
 				},
 				setUserToken: (userToken) => {
-					set({ userToken });
+					console.log("Setting user token:", userToken);
+					set({ userToken: userToken || {} });
 				},
 				clearUserInfoAndToken() {
+					console.log("Clearing user info and token");
 					set({ userInfo: {}, userToken: {} });
 				},
 			},
@@ -50,32 +61,75 @@ const useUserStore = create<UserStore>()(
 	),
 );
 
+export const useUserStoreSelector = () => useUserStore();
 export const useUserInfo = () => useUserStore((state) => state.userInfo);
 export const useUserToken = () => useUserStore((state) => state.userToken);
-export const useUserPermission = () =>
-	useUserStore((state) => state.userInfo.permissions);
+
+// Arreglamos esta función para manejar el caso cuando permissions es undefined
+export const useUserPermission = () => {
+	const userInfo = useUserStore((state) => state.userInfo);
+
+	// Usando useMemo para evitar recálculos innecesarios
+	return useMemo(() => {
+		console.log("User permissions:", userInfo?.permissions);
+		return userInfo?.permissions || [];
+	}, [userInfo]);
+};
+
 export const useUserActions = () => useUserStore((state) => state.actions);
 
 export const useSignIn = () => {
-	const navigatge = useNavigate();
+	const navigate = useNavigate();
 	const { setUserToken, setUserInfo } = useUserActions();
 
 	const signInMutation = useMutation({
-		mutationFn: userService.signin,
+		mutationFn: (data: SignInReq) => {
+			console.log("Attempting signin with:", data);
+			return userService.signin(data);
+		},
+		onSuccess: (response: SignInRes) => {
+			console.log("Login success response:", response);
+
+			// biome-ignore lint/complexity/useOptionalChain: <explanation>
+			if (response && response.user) {
+				const { user, accessToken, refreshToken } = response;
+
+				if (user && accessToken) {
+					// Sólo incluir las propiedades que están en la interfaz
+					setUserToken({
+						accessToken,
+						refreshToken,
+						// No incluir expiresIn aquí
+					});
+					setUserInfo(user);
+					navigate(HOMEPAGE, { replace: true });
+					toast.success("Sign in success!");
+				} else {
+					console.error("Invalid response structure:", response);
+					toast.error("Invalid response format from server", {
+						position: "top-center",
+					});
+				}
+			} else {
+				console.error("Invalid login response:", response);
+				toast.error("Invalid server response", {
+					position: "top-center",
+				});
+			}
+		},
+		onError: (error: any) => {
+			console.error("Sign in error:", error);
+			toast.error(error?.message || "Sign in failed", {
+				position: "top-center",
+			});
+		},
 	});
 
 	const signIn = async (data: SignInReq) => {
 		try {
-			const res = await signInMutation.mutateAsync(data);
-			const { user, accessToken, refreshToken } = res;
-			setUserToken({ accessToken, refreshToken });
-			setUserInfo(user);
-			navigatge(HOMEPAGE, { replace: true });
-			toast.success("Sign in success!");
+			await signInMutation.mutateAsync(data);
 		} catch (err) {
-			toast.error(err.message, {
-				position: "top-center",
-			});
+			console.error("Sign in error caught:", err);
 		}
 	};
 

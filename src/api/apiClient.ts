@@ -1,59 +1,82 @@
+// src/api/apiClient.ts
 import axios, { type AxiosRequestConfig, type AxiosError, type AxiosResponse } from "axios";
 
 import { t } from "@/locales/i18n";
 import userStore from "@/store/userStore";
 
 import { toast } from "sonner";
-import type { Result } from "#/api";
+// import type { Result } from "#/api";
 import { ResultEnum } from "#/enum";
 
-// 创建 axios 实例
+// Crear instancia de axios
 const axiosInstance = axios.create({
 	baseURL: import.meta.env.VITE_APP_BASE_API,
 	timeout: 50000,
 	headers: { "Content-Type": "application/json;charset=utf-8" },
 });
 
-// 请求拦截
+// Interceptor de solicitud
 axiosInstance.interceptors.request.use(
 	(config) => {
-		// 在请求被发送之前做些什么
-		config.headers.Authorization = "Bearer Token";
+		// Obtener el token del store
+		const userToken = userStore.getState().userToken;
+		if (userToken?.accessToken) {
+			config.headers.Authorization = `Bearer ${userToken.accessToken}`;
+		} else {
+			// Si no hay token, eliminar el header
+			config.headers.Authorization = undefined;
+		}
+		console.log("Request config:", config);
 		return config;
 	},
 	(error) => {
-		// 请求错误时做些什么
+		console.error("Request error:", error);
 		return Promise.reject(error);
 	},
 );
 
-// 响应拦截
+// Interceptor de respuesta
 axiosInstance.interceptors.response.use(
-	(res: AxiosResponse<Result>) => {
-		if (!res.data) throw new Error(t("sys.api.apiRequestFailed"));
+	(res: AxiosResponse) => {
+		// Log para depuración
+		console.log("Response received:", res);
+
+		// En caso de respuestas sin estructura data/status, devolver directamente la respuesta
+		if (!res.data || typeof res.data !== "object" || !("status" in res.data)) {
+			console.log("Response has no standard structure, returning directly");
+			return res.data;
+		}
 
 		const { status, data, message } = res.data;
-		// 业务请求成功
-		const hasSuccess = data && Reflect.has(res.data, "status") && status === ResultEnum.SUCCESS;
-		if (hasSuccess) {
+
+		// Si hay status y es SUCCESS, devolver los datos
+		if (status === ResultEnum.SUCCESS) {
+			console.log("Successful response with status:", status);
 			return data;
 		}
 
-		// 业务请求错误
+		// Si llegamos aquí, hay un error en la respuesta
+		console.error("API error response:", res.data);
 		throw new Error(message || t("sys.api.apiRequestFailed"));
 	},
-	(error: AxiosError<Result>) => {
+	(error: AxiosError) => {
+		console.error("Response error:", error);
 		const { response, message } = error || {};
 
-		const errMsg = response?.data?.message || message || t("sys.api.errorMessage");
+		// Mensaje de error para mostrar
+		const errMsg = (response?.data as { message?: string })?.message || message || t("sys.api.errorMessage");
+
+		// Mostrar error al usuario
 		toast.error(errMsg, {
 			position: "top-center",
 		});
 
+		// Manejar errores de autenticación
 		const status = response?.status;
 		if (status === 401) {
 			userStore.getState().actions.clearUserInfoAndToken();
 		}
+
 		return Promise.reject(error);
 	},
 );
@@ -78,14 +101,16 @@ class APIClient {
 	request<T = any>(config: AxiosRequestConfig): Promise<T> {
 		return new Promise((resolve, reject) => {
 			axiosInstance
-				.request<any, AxiosResponse<Result>>(config)
-				.then((res: AxiosResponse<Result>) => {
-					resolve(res as unknown as Promise<T>);
+				.request(config)
+				.then((res: any) => {
+					resolve(res as T);
 				})
 				.catch((e: Error | AxiosError) => {
+					console.error("API request failed:", e);
 					reject(e);
 				});
 		});
 	}
 }
+
 export default new APIClient();
